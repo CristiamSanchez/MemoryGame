@@ -1,5 +1,6 @@
 const symbols = ["🌙", "☀️", "⭐", "🎵", "🍀", "⚡", "🎯", "🔥"];
 const STORAGE_KEY = "memory-game-scoreboard-v1";
+let audioContext = null;
 
 const defaultScoreboard = {
   "Player 1": { wins: 0, attempts: 0, bestTime: null },
@@ -58,6 +59,59 @@ function loadScoreboard() {
 
 function saveScoreboard() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.scoreboard));
+}
+
+function ensureAudioContext() {
+  const AudioCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtor) {
+    return null;
+  }
+
+  if (!audioContext) {
+    audioContext = new AudioCtor();
+  }
+
+  if (audioContext.state === "suspended") {
+    audioContext.resume();
+  }
+
+  return audioContext;
+}
+
+function playTone(frequency, duration, volume = 0.04, wave = "square") {
+  const ctx = ensureAudioContext();
+  if (!ctx) {
+    return;
+  }
+
+  const oscillator = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  oscillator.type = wave;
+  oscillator.frequency.value = frequency;
+  gain.gain.value = volume;
+
+  oscillator.connect(gain);
+  gain.connect(ctx.destination);
+
+  oscillator.start();
+  gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+  oscillator.stop(ctx.currentTime + duration);
+}
+
+function playMatchSound() {
+  playTone(660, 0.12, 0.035, "square");
+  window.setTimeout(() => playTone(880, 0.1, 0.03, "triangle"), 80);
+}
+
+function playFailSound() {
+  playTone(180, 0.18, 0.03, "sawtooth");
+}
+
+function playWinSound() {
+  playTone(440, 0.15, 0.04, "triangle");
+  window.setTimeout(() => playTone(660, 0.16, 0.04, "triangle"), 120);
+  window.setTimeout(() => playTone(880, 0.2, 0.04, "triangle"), 240);
 }
 
 function shuffle(items) {
@@ -168,6 +222,7 @@ function finishGame() {
   saveScoreboard();
 
   showWinnerModal(winner);
+  playWinSound();
   setMessage(`¡Partida terminada! ${winner.name} gana con ${formatTime(winner.time)} y ${winner.attempts} intentos.`);
   updateHud();
 }
@@ -225,6 +280,7 @@ function compareFlippedCards() {
     state.matchedPairs += 1;
     state.flippedCards = [];
     state.isLocked = false;
+    playMatchSound();
     updateHud();
     setMessage(`${activePlayer.name} encontró una pareja.`);
 
@@ -239,6 +295,7 @@ function compareFlippedCards() {
 
   state.isLocked = true;
   passTurnBtn.hidden = false;
+  playFailSound();
   setMessage(`${activePlayer.name} falló. Pulsa “Siguiente turno” para pasar el turno.`);
   renderBoard();
 }
@@ -259,6 +316,8 @@ function handleCardClick(cardId) {
   if (state.gameFinished || state.isLocked) {
     return;
   }
+
+  ensureAudioContext();
 
   if (!state.hasStarted) {
     startTimer();
