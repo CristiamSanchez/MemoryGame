@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta
+      name="description"
+      content="Memory Game web responsive para jugar en PC y móvil."
+    />
+    <title>Memory Game</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Mini proyecto</p>
+          <h1>Memory Game</h1>
+        </div>
+        <button id="restartBtn" class="secondary-btn" type="button">Reiniciar</button>
+      </header>
+
+      <section class="status-panel" aria-label="Estado del juego">
+        <div class="stat">
+          <span class="label">Movimientos</span>
+          <strong id="moves">0</strong>
+        </div>
+        <div class="stat">
+          <span class="label">Pares</span>
+          <strong id="pairs">0 / 8</strong>
+        </div>
+        <div class="stat timer-box">
+          <span class="label">Tiempo</span>
+          <strong id="timer">00:00</strong>
+        </div>
+      </section>
+
+      <section class="board-wrap">
+        <div id="board" class="board" aria-live="polite"></div>
+      </section>
+
+      <div id="message" class="message" aria-live="assertive">
+        Encuentra todas las parejas.
+      </div>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
