@@ -17,6 +17,7 @@ const state = {
   timer: 0,
   timerId: null,
   pendingTimeoutId: null,
+  soundTimeoutIds: [],
   hasStarted: false,
   gameFinished: false,
   gamesPlayed: 0,
@@ -101,7 +102,7 @@ function playTone(frequency, duration, volume = 0.04, wave = "square") {
 
 function playMatchSound() {
   playTone(660, 0.12, 0.035, "square");
-  window.setTimeout(() => playTone(880, 0.1, 0.03, "triangle"), 80);
+  state.soundTimeoutIds.push(window.setTimeout(() => playTone(880, 0.1, 0.03, "triangle"), 80));
 }
 
 function playFailSound() {
@@ -110,8 +111,8 @@ function playFailSound() {
 
 function playWinSound() {
   playTone(440, 0.15, 0.04, "triangle");
-  window.setTimeout(() => playTone(660, 0.16, 0.04, "triangle"), 120);
-  window.setTimeout(() => playTone(880, 0.2, 0.04, "triangle"), 240);
+  state.soundTimeoutIds.push(window.setTimeout(() => playTone(660, 0.16, 0.04, "triangle"), 120));
+  state.soundTimeoutIds.push(window.setTimeout(() => playTone(880, 0.2, 0.04, "triangle"), 240));
 }
 
 function shuffle(items) {
@@ -201,6 +202,21 @@ function clearPendingTurnTimeout() {
   }
 }
 
+function clearSoundTimeouts() {
+  if (!state.soundTimeoutIds.length) {
+    return;
+  }
+
+  state.soundTimeoutIds.forEach((timeoutId) => clearTimeout(timeoutId));
+  state.soundTimeoutIds = [];
+}
+
+function clearAllPendingTimers() {
+  stopTimer();
+  clearPendingTurnTimeout();
+  clearSoundTimeouts();
+}
+
 function finishGame() {
   state.gameFinished = true;
   state.gamesPlayed += 1;
@@ -228,8 +244,7 @@ function finishGame() {
 }
 
 function resetGame() {
-  stopTimer();
-  clearPendingTurnTimeout();
+  clearAllPendingTimers();
   hideWinnerModal();
   state.deck = buildDeck();
   state.flippedCards = [];
@@ -389,6 +404,7 @@ restartBtn.addEventListener("click", () => {
 
 passTurnBtn.addEventListener("click", passTurn);
 playAgainBtn.addEventListener("click", () => {
+  clearAllPendingTimers();
   resetGame();
 });
 
