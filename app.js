@@ -1,5 +1,6 @@
 const symbols = ["🌙", "☀️", "⭐", "🎵", "🍀", "⚡", "🎯", "🔥"];
 const STORAGE_KEY = "memory-game-scoreboard-v1";
+const SOUND_ENABLED = false;
 let audioContext = null;
 
 const defaultScoreboard = {
@@ -35,9 +36,6 @@ const turnLabelEl = document.getElementById("turnLabel");
 const messageEl = document.getElementById("message");
 const restartBtn = document.getElementById("restartBtn");
 const passTurnBtn = document.getElementById("passTurnBtn");
-const winnerModal = document.getElementById("winnerModal");
-const winnerText = document.getElementById("winnerText");
-const playAgainBtn = document.getElementById("playAgainBtn");
 const gamesCounterEl = document.getElementById("gamesCounter");
 const player1Panel = document.getElementById("player1Panel");
 const player2Panel = document.getElementById("player2Panel");
@@ -63,6 +61,10 @@ function saveScoreboard() {
 }
 
 function ensureAudioContext() {
+  if (!SOUND_ENABLED) {
+    return null;
+  }
+
   const AudioCtor = window.AudioContext || window.webkitAudioContext;
   if (!AudioCtor) {
     return null;
@@ -80,6 +82,10 @@ function ensureAudioContext() {
 }
 
 function playTone(frequency, duration, volume = 0.04, wave = "square") {
+  if (!SOUND_ENABLED) {
+    return;
+  }
+
   const ctx = ensureAudioContext();
   if (!ctx) {
     return;
@@ -141,15 +147,6 @@ function formatTime(totalSeconds) {
 
 function getActivePlayer() {
   return state.players[state.currentTurn];
-}
-
-function showWinnerModal(winner) {
-  winnerText.textContent = `${winner.name} gana con ${formatTime(winner.time)} y ${winner.attempts} intentos.`;
-  winnerModal.hidden = false;
-}
-
-function hideWinnerModal() {
-  winnerModal.hidden = true;
 }
 
 function updateHud() {
@@ -215,11 +212,13 @@ function clearAllPendingTimers() {
   stopTimer();
   clearPendingTurnTimeout();
   clearSoundTimeouts();
+  state.pendingTimeoutId = null;
 }
 
 function finishGame() {
   state.gameFinished = true;
   state.gamesPlayed += 1;
+  clearPendingTurnTimeout();
   stopTimer();
   passTurnBtn.hidden = true;
 
@@ -237,7 +236,6 @@ function finishGame() {
   }
   saveScoreboard();
 
-  showWinnerModal(winner);
   playWinSound();
   setMessage(`¡Partida terminada! ${winner.name} gana con ${formatTime(winner.time)} y ${winner.attempts} intentos.`);
   updateHud();
@@ -245,7 +243,6 @@ function finishGame() {
 
 function resetGame() {
   clearAllPendingTimers();
-  hideWinnerModal();
   state.deck = buildDeck();
   state.flippedCards = [];
   state.matchedPairs = 0;
@@ -254,6 +251,7 @@ function resetGame() {
   state.timer = 0;
   state.hasStarted = false;
   state.gameFinished = false;
+  state.pendingTimeoutId = null;
   state.players = [
     { name: "Player 1", pairs: 0, attempts: 0, time: 0 },
     { name: "Player 2", pairs: 0, attempts: 0, time: 0 },
@@ -403,9 +401,5 @@ restartBtn.addEventListener("click", () => {
 });
 
 passTurnBtn.addEventListener("click", passTurn);
-playAgainBtn.addEventListener("click", () => {
-  clearAllPendingTimers();
-  resetGame();
-});
 
 resetGame();
