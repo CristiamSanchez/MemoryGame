@@ -1,23 +1,63 @@
 const symbols = ["🌙", "☀️", "⭐", "🎵", "🍀", "⚡", "🎯", "🔥"];
+const STORAGE_KEY = "memory-game-scoreboard-v1";
+
+const defaultScoreboard = {
+  "Player 1": { wins: 0, attempts: 0, bestTime: null },
+  "Player 2": { wins: 0, attempts: 0, bestTime: null },
+};
 
 const state = {
   deck: [],
   flippedCards: [],
   matchedPairs: 0,
-  moves: 0,
+  totalPairs: symbols.length,
+  currentTurn: 0,
   isLocked: false,
   timer: 0,
   timerId: null,
   hasStarted: false,
   gameFinished: false,
+  gamesPlayed: 0,
+  players: [
+    { name: "Player 1", pairs: 0, attempts: 0, time: 0 },
+    { name: "Player 2", pairs: 0, attempts: 0, time: 0 },
+  ],
+  scoreboard: loadScoreboard(),
 };
 
 const boardEl = document.getElementById("board");
-const movesEl = document.getElementById("moves");
 const pairsEl = document.getElementById("pairs");
 const timerEl = document.getElementById("timer");
+const turnLabelEl = document.getElementById("turnLabel");
 const messageEl = document.getElementById("message");
 const restartBtn = document.getElementById("restartBtn");
+const passTurnBtn = document.getElementById("passTurnBtn");
+const winnerModal = document.getElementById("winnerModal");
+const winnerText = document.getElementById("winnerText");
+const playAgainBtn = document.getElementById("playAgainBtn");
+const gamesCounterEl = document.getElementById("gamesCounter");
+const player1Panel = document.getElementById("player1Panel");
+const player2Panel = document.getElementById("player2Panel");
+
+const p1PairsEl = document.getElementById("p1Pairs");
+const p1AttemptsEl = document.getElementById("p1Attempts");
+const p1TimeEl = document.getElementById("p1Time");
+const p2PairsEl = document.getElementById("p2Pairs");
+const p2AttemptsEl = document.getElementById("p2Attempts");
+const p2TimeEl = document.getElementById("p2Time");
+
+function loadScoreboard() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? { ...defaultScoreboard, ...JSON.parse(raw) } : { ...defaultScoreboard };
+  } catch (error) {
+    return { ...defaultScoreboard };
+  }
+}
+
+function saveScoreboard() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.scoreboard));
+}
 
 function shuffle(items) {
   const copy = [...items];
@@ -29,12 +69,10 @@ function shuffle(items) {
 }
 
 function buildDeck() {
-  const deck = symbols
-    .flatMap((symbol, index) => [
-      { id: `${symbol}-${index}-a`, symbol, matched: false },
-      { id: `${symbol}-${index}-b`, symbol, matched: false },
-    ])
-    .map((card, index) => ({ ...card, order: index }));
+  const deck = symbols.flatMap((symbol, index) => [
+    { id: `${symbol}-${index}-a`, symbol, matched: false },
+    { id: `${symbol}-${index}-b`, symbol, matched: false },
+  ]);
 
   return shuffle(deck);
 }
@@ -45,10 +83,36 @@ function formatTime(totalSeconds) {
   return `${minutes}:${seconds}`;
 }
 
+function getActivePlayer() {
+  return state.players[state.currentTurn];
+}
+
+function showWinnerModal(winner) {
+  winnerText.textContent = `${winner.name} gana con ${formatTime(winner.time)} y ${winner.attempts} intentos.`;
+  winnerModal.hidden = false;
+}
+
+function hideWinnerModal() {
+  winnerModal.hidden = true;
+}
+
 function updateHud() {
-  movesEl.textContent = String(state.moves);
-  pairsEl.textContent = `${state.matchedPairs} / ${symbols.length}`;
+  const activePlayer = getActivePlayer();
+  pairsEl.textContent = `${state.matchedPairs} / ${state.totalPairs}`;
   timerEl.textContent = formatTime(state.timer);
+  turnLabelEl.textContent = activePlayer.name;
+
+  p1PairsEl.textContent = String(state.players[0].pairs);
+  p1AttemptsEl.textContent = String(state.players[0].attempts);
+  p1TimeEl.textContent = formatTime(state.players[0].time);
+
+  p2PairsEl.textContent = String(state.players[1].pairs);
+  p2AttemptsEl.textContent = String(state.players[1].attempts);
+  p2TimeEl.textContent = formatTime(state.players[1].time);
+
+  gamesCounterEl.textContent = String(state.gamesPlayed);
+  player1Panel.classList.toggle("active", state.currentTurn === 0 && !state.gameFinished);
+  player2Panel.classList.toggle("active", state.currentTurn === 1 && !state.gameFinished);
 }
 
 function setMessage(text) {
@@ -63,6 +127,7 @@ function startTimer() {
   state.hasStarted = true;
   state.timerId = window.setInterval(() => {
     state.timer += 1;
+    state.players[state.currentTurn].time += 1;
     updateHud();
   }, 1000);
 }
@@ -74,37 +139,70 @@ function stopTimer() {
   }
 }
 
-function checkWin() {
-  if (state.matchedPairs === symbols.length) {
-    state.gameFinished = true;
-    stopTimer();
-    setMessage(`¡Ganaste! Tiempo total: ${formatTime(state.timer)} con ${state.moves} movimientos.`);
+function finishGame() {
+  state.gameFinished = true;
+  state.gamesPlayed += 1;
+  stopTimer();
+  passTurnBtn.hidden = true;
+
+  const sortedPlayers = [...state.players].sort((a, b) => {
+    if (a.time !== b.time) return a.time - b.time;
+    return a.attempts - b.attempts;
+  });
+
+  const winner = sortedPlayers[0];
+  state.scoreboard[winner.name].wins += 1;
+  state.scoreboard[winner.name].attempts += winner.attempts;
+  const currentBest = state.scoreboard[winner.name].bestTime;
+  if (currentBest === null || winner.time < currentBest) {
+    state.scoreboard[winner.name].bestTime = winner.time;
   }
+  saveScoreboard();
+
+  showWinnerModal(winner);
+  setMessage(`¡Partida terminada! ${winner.name} gana con ${formatTime(winner.time)} y ${winner.attempts} intentos.`);
+  updateHud();
 }
 
 function resetGame() {
   stopTimer();
+  hideWinnerModal();
   state.deck = buildDeck();
   state.flippedCards = [];
   state.matchedPairs = 0;
-  state.moves = 0;
+  state.currentTurn = 0;
   state.isLocked = false;
   state.timer = 0;
   state.hasStarted = false;
   state.gameFinished = false;
+  state.players = [
+    { name: "Player 1", pairs: 0, attempts: 0, time: 0 },
+    { name: "Player 2", pairs: 0, attempts: 0, time: 0 },
+  ];
+  passTurnBtn.hidden = true;
+
   setMessage("Encuentra todas las parejas.");
   updateHud();
   renderBoard();
 }
 
-function unlockBoard() {
-  state.isLocked = false;
+function passTurn() {
+  if (state.gameFinished || !state.isLocked) {
+    return;
+  }
+
   state.flippedCards = [];
+  state.isLocked = false;
+  state.currentTurn = state.currentTurn === 0 ? 1 : 0;
+  passTurnBtn.hidden = true;
   renderBoard();
+  updateHud();
+  setMessage(`${getActivePlayer().name} puede jugar ahora.`);
 }
 
 function compareFlippedCards() {
   const [firstCard, secondCard] = state.flippedCards;
+  const activePlayer = getActivePlayer();
 
   if (firstCard.symbol === secondCard.symbol) {
     state.deck = state.deck.map((card) => {
@@ -114,26 +212,30 @@ function compareFlippedCards() {
       return card;
     });
 
+    activePlayer.pairs += 1;
     state.matchedPairs += 1;
     state.flippedCards = [];
+    state.isLocked = false;
     updateHud();
-    setMessage("¡Pareja correcta!");
-    checkWin();
+    setMessage(`${activePlayer.name} encontró una pareja.`);
+
+    if (state.matchedPairs === state.totalPairs) {
+      finishGame();
+      return;
+    }
+
+    renderBoard();
     return;
   }
 
   state.isLocked = true;
-  setMessage("No coincide. Inténtalo otra vez.");
-
-  window.setTimeout(() => {
-    state.flippedCards = [];
-    state.isLocked = false;
-    renderBoard();
-  }, 750);
+  passTurnBtn.hidden = false;
+  setMessage(`${activePlayer.name} falló. Pulsa “Siguiente turno” para pasar el turno.`);
+  renderBoard();
 }
 
 function handleCardClick(cardId) {
-  if (state.gameFinished) {
+  if (state.gameFinished || state.isLocked) {
     return;
   }
 
@@ -143,7 +245,7 @@ function handleCardClick(cardId) {
 
   const clickedCard = state.deck.find((card) => card.id === cardId);
 
-  if (!clickedCard || clickedCard.matched || state.isLocked) {
+  if (!clickedCard || clickedCard.matched) {
     return;
   }
 
@@ -155,8 +257,9 @@ function handleCardClick(cardId) {
   renderBoard();
 
   if (state.flippedCards.length === 2) {
+    const activePlayer = getActivePlayer();
+    activePlayer.attempts += 1;
     state.isLocked = true;
-    state.moves += 1;
     updateHud();
     window.setTimeout(compareFlippedCards, 180);
   }
@@ -170,7 +273,12 @@ function renderBoard() {
     button.type = "button";
     button.className = "card";
     button.dataset.id = card.id;
-    button.setAttribute("aria-label", card.matched || state.flippedCards.some((item) => item.id === card.id) ? `Carta ${card.symbol}` : "Carta oculta");
+    button.setAttribute(
+      "aria-label",
+      card.matched || state.flippedCards.some((item) => item.id === card.id)
+        ? `Carta ${card.symbol}`
+        : "Carta oculta"
+    );
 
     if (card.matched || state.flippedCards.some((item) => item.id === card.id)) {
       button.classList.add("flipped");
@@ -194,5 +302,13 @@ function renderBoard() {
   });
 }
 
-restartBtn.addEventListener("click", resetGame);
+restartBtn.addEventListener("click", () => {
+  resetGame();
+});
+
+passTurnBtn.addEventListener("click", passTurn);
+playAgainBtn.addEventListener("click", () => {
+  resetGame();
+});
+
 resetGame();

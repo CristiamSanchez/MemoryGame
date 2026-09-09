@@ -20,10 +20,38 @@
         <button id="restartBtn" class="secondary-btn" type="button">Reiniciar</button>
       </header>
 
+      <section class="players-panel" aria-label="Marcador de jugadores">
+        <div class="player-card active" id="player1Panel">
+          <div class="player-header">
+            <span class="player-badge">P1</span>
+            <strong>Player 1</strong>
+          </div>
+          <div class="player-stats">
+            <span>Pares: <strong id="p1Pairs">0</strong></span>
+            <span>Intentos: <strong id="p1Attempts">0</strong></span>
+            <span>Tiempo: <strong id="p1Time">00:00</strong></span>
+          </div>
+        </div>
+
+        <div class="versus">VS</div>
+
+        <div class="player-card" id="player2Panel">
+          <div class="player-header">
+            <span class="player-badge alt">P2</span>
+            <strong>Player 2</strong>
+          </div>
+          <div class="player-stats">
+            <span>Pares: <strong id="p2Pairs">0</strong></span>
+            <span>Intentos: <strong id="p2Attempts">0</strong></span>
+            <span>Tiempo: <strong id="p2Time">00:00</strong></span>
+          </div>
+        </div>
+      </section>
+
       <section class="status-panel" aria-label="Estado del juego">
         <div class="stat">
-          <span class="label">Movimientos</span>
-          <strong id="moves">0</strong>
+          <span class="label">Turno</span>
+          <strong id="turnLabel">Player 1</strong>
         </div>
         <div class="stat">
           <span class="label">Pares</span>
@@ -35,6 +63,16 @@
         </div>
       </section>
 
+      <div class="control-row">
+        <button id="passTurnBtn" class="pass-btn" type="button" hidden>
+          Siguiente turno
+        </button>
+        <div class="games-counter">
+          <span>Partidas</span>
+          <strong id="gamesCounter">0</strong>
+        </div>
+      </div>
+
       <section class="board-wrap">
         <div id="board" class="board" aria-live="polite"></div>
       </section>
@@ -43,6 +81,15 @@
         Encuentra todas las parejas.
       </div>
     </main>
+
+    <div id="winnerModal" class="winner-modal" hidden>
+      <div class="winner-card" role="dialog" aria-modal="true" aria-labelledby="winnerTitle">
+        <p class="winner-label">Resultado final</p>
+        <h2 id="winnerTitle">¡Ganador!</h2>
+        <p id="winnerText">Player 1 ha ganado.</p>
+        <button id="playAgainBtn" class="secondary-btn" type="button">Jugar otra vez</button>
+      </div>
+    </div>
 
     <script src="app.js"></script>
   </body>
