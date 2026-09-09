@@ -15,6 +15,7 @@ const state = {
   isLocked: false,
   timer: 0,
   timerId: null,
+  pendingTimeoutId: null,
   hasStarted: false,
   gameFinished: false,
   gamesPlayed: 0,
@@ -139,6 +140,13 @@ function stopTimer() {
   }
 }
 
+function clearPendingTurnTimeout() {
+  if (state.pendingTimeoutId) {
+    clearTimeout(state.pendingTimeoutId);
+    state.pendingTimeoutId = null;
+  }
+}
+
 function finishGame() {
   state.gameFinished = true;
   state.gamesPlayed += 1;
@@ -166,6 +174,7 @@ function finishGame() {
 
 function resetGame() {
   stopTimer();
+  clearPendingTurnTimeout();
   hideWinnerModal();
   state.deck = buildDeck();
   state.flippedCards = [];
@@ -234,6 +243,18 @@ function compareFlippedCards() {
   renderBoard();
 }
 
+function triggerTurnTimeout() {
+  clearPendingTurnTimeout();
+  state.pendingTimeoutId = window.setTimeout(() => {
+    state.pendingTimeoutId = null;
+    state.flippedCards = [];
+    state.isLocked = false;
+    state.currentTurn = state.currentTurn === 0 ? 1 : 0;
+    renderBoard();
+    updateHud();
+  }, 750);
+}
+
 function handleCardClick(cardId) {
   if (state.gameFinished || state.isLocked) {
     return;
@@ -261,7 +282,8 @@ function handleCardClick(cardId) {
     activePlayer.attempts += 1;
     state.isLocked = true;
     updateHud();
-    window.setTimeout(compareFlippedCards, 180);
+    clearPendingTurnTimeout();
+    state.pendingTimeoutId = window.setTimeout(compareFlippedCards, 180);
   }
 }
 
